@@ -429,13 +429,12 @@ function App() {
     }
   }, [sessionId, config.revealTime])
 
-  // Helper para URL dinámica del servidor (Desarrollo / Producción)
+  // Helper para URL dinámica del servidor (Desarrollo / Proxy / Producción)
   const getApiUrl = () => {
     if (import.meta.env.VITE_API_URL) {
       return import.meta.env.VITE_API_URL;
     }
-    const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-    return `http://${host}:3001`;
+    return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
   };
 
   // Crear la sesión en el Backend

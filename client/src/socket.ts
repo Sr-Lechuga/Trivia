@@ -5,8 +5,8 @@ const getSocketUrl = () => {
   if (import.meta.env.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
-  const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  return `http://${host}:3001`;
+  // En desarrollo/Ngrok, conectarse de forma relativa (misma origen) usando el proxy de Vite
+  return typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173';
 };
 
 export const socket: Socket = io(getSocketUrl(), {
