@@ -319,6 +319,7 @@ function App() {
   // Respuestas y Resultados
   const [hasAnswered, setHasAnswered] = useState(false)
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  const selectedOptionRef = useRef<number | null>(null)  // ref para evitar stale closure en socket handlers
   const [correctIndex, setCorrectIndex] = useState<number | null>(null)
   const [answerStats, setAnswerStats] = useState<[number, number, number, number] | null>(null)
   const [scoreboard, setScoreboard] = useState<ScoreboardUpdatePayload['players']>([])
@@ -427,6 +428,7 @@ function App() {
       if (payload.status === 'READING') {
         setHasAnswered(false)
         setSelectedOption(null)
+        selectedOptionRef.current = null  // limpiar ref al iniciar nueva ronda
         setCorrectIndex(null)
         setAnswerStats(null)
       } else if (payload.status === 'ANSWERING') {
@@ -440,9 +442,10 @@ function App() {
       setAnswerStats(payload.stats.optionCounts)
       setTimeLeft(config.revealTime)
 
-      // Reproducción de efectos de sonido
-      if (selectedOption !== null) {
-        if (selectedOption === payload.correctOptionIndex) {
+      // Usar ref en lugar de state para evitar stale closure
+      const selected = selectedOptionRef.current
+      if (selected !== null) {
+        if (selected === payload.correctOptionIndex) {
           sounds.playCorrect();
         } else {
           sounds.playIncorrect();
@@ -551,6 +554,7 @@ function App() {
     if (hasAnswered || gamePhase !== 'ANSWERING') return;
 
     setSelectedOption(index)
+    selectedOptionRef.current = index  // mantener ref actualizado
     setHasAnswered(true)
 
     const responseTimeMs = Date.now() - phaseStartTimestamp.current;
@@ -576,6 +580,7 @@ function App() {
     setCurrentQuestion(null)
     setHasAnswered(false)
     setSelectedOption(null)
+    selectedOptionRef.current = null
     setCorrectIndex(null)
     setAnswerStats(null)
     setScoreboard([])
