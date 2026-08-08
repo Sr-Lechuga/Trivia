@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { socket } from './socket'
 import { QRCodeSVG } from 'qrcode.react'
+import { sounds } from './sound'
 import type { 
   Question, 
   TriviaConfig, 
@@ -438,6 +439,15 @@ function App() {
       setCorrectIndex(payload.correctOptionIndex)
       setAnswerStats(payload.stats.optionCounts)
       setTimeLeft(config.revealTime)
+
+      // Reproducción de efectos de sonido
+      if (selectedOption !== null) {
+        if (selectedOption === payload.correctOptionIndex) {
+          sounds.playCorrect();
+        } else {
+          sounds.playIncorrect();
+        }
+      }
     });
 
     socket.on('scoreboard:update', (payload: ScoreboardUpdatePayload) => {
@@ -447,6 +457,7 @@ function App() {
     socket.on('game:finished', (payload: GameFinishedPayload) => {
       setGamePhase('FINISHED')
       setPodium(payload.podium)
+      sounds.playVictory();
     });
 
     socket.on('connect_error', () => {
@@ -1231,18 +1242,24 @@ function App() {
 
                 {/* Display answer status during reveal */}
                 {gamePhase === 'REVEALING' && (
-                  <div className="text-center p-6 rounded-2xl border bg-slate-950/40 border-slate-800">
+                  <div className="animate-pop-in text-center p-6 rounded-2xl border bg-slate-950/40 border-slate-800">
                     {selectedOption === null ? (
-                      <p className="text-yellow-500 font-bold text-lg">⚠️ ¡Se te acabó el tiempo!</p>
+                      <div className="animate-pop-in">
+                        <p className="text-4xl mb-2">⏱️</p>
+                        <p className="text-yellow-400 font-extrabold text-xl">¡Se te acabó el tiempo!</p>
+                        <p className="text-slate-400 text-sm mt-1">La respuesta era: <span className="text-white font-bold">{currentQuestion.options[correctIndex!]}</span></p>
+                      </div>
                     ) : selectedOption === correctIndex ? (
-                      <div>
-                        <p className="text-green-500 font-extrabold text-2xl">🎉 ¡CORRECTO!</p>
+                      <div className="animate-pop-in">
+                        <p className="text-5xl mb-2">🎉</p>
+                        <p className="text-green-400 font-extrabold text-2xl tracking-tight">¡CORRECTO!</p>
                         <p className="text-slate-400 text-sm mt-1">Sumaste puntos en esta ronda.</p>
                       </div>
                     ) : (
-                      <div>
-                        <p className="text-red-500 font-extrabold text-2xl">❌ INCORRECTO</p>
-                        <p className="text-slate-400 text-sm mt-1">La respuesta correcta era: {currentQuestion.options[correctIndex!]}</p>
+                      <div className="animate-pop-in">
+                        <p className="text-5xl mb-2">💥</p>
+                        <p className="text-red-400 font-extrabold text-2xl tracking-tight">INCORRECTO</p>
+                        <p className="text-slate-400 text-sm mt-1">La respuesta correcta era: <span className="text-green-400 font-bold">{currentQuestion.options[correctIndex!]}</span></p>
                       </div>
                     )}
                   </div>
@@ -1252,66 +1269,89 @@ function App() {
 
             {/* FINISHED / PODIUM SCREEN (Both Host & Player see final podium) */}
             {gamePhase === 'FINISHED' && (
-              <div className="bg-slate-800/40 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-8 max-w-md mx-auto">
-                <div>
+              <div className="relative overflow-hidden bg-slate-800/40 border border-slate-800 rounded-3xl p-8 shadow-2xl text-center space-y-8 max-w-md mx-auto">
+
+                {/* Confetti particles */}
+                {['🎊','🎉','⭐','✨','🏆','🎊','🎉','⭐','✨','🌟'].map((emoji, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      position: 'absolute',
+                      left: `${(i * 11) % 100}%`,
+                      top: '-20px',
+                      fontSize: `${14 + (i % 3) * 4}px`,
+                      animation: `confettiFall ${2.5 + (i % 3) * 0.7}s ${i * 0.25}s ease-in forwards`,
+                      pointerEvents: 'none',
+                      zIndex: 0
+                    }}
+                  >
+                    {emoji}
+                  </span>
+                ))}
+
+                <div className="relative z-10">
                   <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wider block mb-1">
                     Juego Finalizado
                   </span>
-                  <h2 className="text-4xl font-extrabold text-white">
+                  <h2 className="text-4xl font-extrabold text-white animate-pop-in">
                     🏆 PODIO 🏆
                   </h2>
                 </div>
 
                 {/* Podium visualization */}
-                <div className="flex items-end justify-center gap-4 py-8">
+                <div className="relative z-10 flex items-end justify-center gap-4 py-4">
                   {/* 2nd Place */}
                   {podium[1] && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs text-slate-400 font-bold mb-1">{podium[1].name}</span>
-                      <div className="w-20 bg-gradient-to-t from-slate-700 to-slate-500 h-24 rounded-t-xl flex items-center justify-center text-white font-bold text-xl relative shadow-lg">
-                        2
-                        <span className="absolute bottom-2 text-xs font-mono">{podium[1].score}</span>
+                    <div className="flex flex-col items-center animate-rise-2">
+                      <span className="text-sm text-slate-300 font-bold mb-1 truncate max-w-[80px]">{podium[1].name}</span>
+                      <div className="w-20 bg-gradient-to-t from-slate-600 to-slate-400 h-24 rounded-t-xl flex flex-col items-center justify-center text-white font-bold text-xl shadow-lg">
+                        <span>🥈</span>
+                        <span className="text-xs font-mono mt-1 text-slate-200">{podium[1].score}</span>
                       </div>
                     </div>
                   )}
+
                   {/* 1st Place */}
                   {podium[0] && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs text-yellow-400 font-bold mb-1">{podium[0].name}</span>
-                      <div className="w-24 bg-gradient-to-t from-amber-600 to-yellow-400 h-32 rounded-t-xl flex items-center justify-center text-white font-black text-2xl relative shadow-xl border-t border-yellow-300">
-                        👑 1
-                        <span className="absolute bottom-2 text-xs font-mono">{podium[0].score}</span>
+                    <div className="flex flex-col items-center animate-rise-1">
+                      <span className="text-sm text-yellow-300 font-extrabold mb-1 truncate max-w-[90px]">{podium[0].name}</span>
+                      <div className="w-24 bg-gradient-to-t from-amber-600 to-yellow-400 h-36 rounded-t-xl flex flex-col items-center justify-center text-white font-black text-2xl shadow-2xl border-t-2 border-yellow-300 animate-winner-glow">
+                        <span>👑</span>
+                        <span className="text-xs font-mono mt-1">{podium[0].score}</span>
                       </div>
                     </div>
                   )}
+
                   {/* 3rd Place */}
                   {podium[2] && (
-                    <div className="flex flex-col items-center">
-                      <span className="text-xs text-amber-600 font-bold mb-1">{podium[2].name}</span>
-                      <div className="w-20 bg-gradient-to-t from-amber-800 to-amber-700 h-16 rounded-t-xl flex items-center justify-center text-white font-bold text-lg relative shadow-lg">
-                        3
-                        <span className="absolute bottom-2 text-xs font-mono">{podium[2].score}</span>
+                    <div className="flex flex-col items-center animate-rise-3">
+                      <span className="text-sm text-amber-500 font-bold mb-1 truncate max-w-[80px]">{podium[2].name}</span>
+                      <div className="w-20 bg-gradient-to-t from-amber-900 to-amber-700 h-16 rounded-t-xl flex flex-col items-center justify-center text-white font-bold text-lg shadow-lg">
+                        <span>🥉</span>
+                        <span className="text-xs font-mono mt-1">{podium[2].score}</span>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Podio list details */}
-                <div className="text-left space-y-2 max-h-40 overflow-y-auto border-t border-slate-800 pt-4">
-                  {podium.slice(3).map((p, idx) => (
-                    <div key={idx} className="flex justify-between items-center py-1.5 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-slate-500">#{p.rank}</span>
-                        <span className="text-slate-300">{p.name}</span>
+                {/* Remaining players list */}
+                {podium.length > 3 && (
+                  <div className="relative z-10 text-left space-y-2 max-h-40 overflow-y-auto border-t border-slate-800 pt-4">
+                    {podium.slice(3).map((p, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-1.5 text-sm">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-slate-500">#{p.rank}</span>
+                          <span className="text-slate-300">{p.name}</span>
+                        </div>
+                        <span className="font-bold text-indigo-400">{p.score} pts</span>
                       </div>
-                      <span className="font-bold text-indigo-400">{p.score} pts</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
 
-                <button 
+                <button
                   onClick={resetAll}
-                  className="w-full py-3 px-4 rounded-xl bg-slate-700 hover:bg-slate-600 font-bold text-white transition-colors"
+                  className="relative z-10 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 font-bold text-white transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
                 >
                   Volver al Menú Principal
                 </button>
