@@ -19,19 +19,22 @@ const DEFAULT_QUESTIONS: Question[] = [
     id: '1',
     text: '¿Cuál es la única fuente de verdad en la arquitectura de esta Trivia?',
     options: ['La base de datos', 'El cliente del Host', 'El servidor', 'El LocalStorage'],
-    correctOptionIndex: 2
+    correctOptionIndex: 2,
+    funFact: 'En arquitecturas cliente-servidor, el servidor actúa como árbitro central. Esto garantiza que todos los jugadores vean el mismo estado del juego, sin importar la latencia de red de cada uno.'
   },
   {
     id: '2',
     text: '¿Qué biblioteca se usa para la comunicación en tiempo real?',
     options: ['HTTP Polling', 'WebRTC', 'Socket.IO', 'gRPC'],
-    correctOptionIndex: 2
+    correctOptionIndex: 2,
+    funFact: 'Socket.IO combina WebSockets con fallbacks automáticos (como Long Polling) para garantizar conectividad incluso en redes restrictivas. También maneja reconexiones automáticamente.'
   },
   {
     id: '3',
     text: '¿En qué almacenamiento local persistimos el UUID de reconexión?',
     options: ['Cookies', 'SessionStorage', 'IndexedDB', 'LocalStorage'],
-    correctOptionIndex: 3
+    correctOptionIndex: 3,
+    funFact: 'localStorage persiste los datos incluso al cerrar el navegador, a diferencia de sessionStorage que se limpia al cerrar la pestaña. Esto es lo que permite la reconexión automática al volver a la app.'
   }
 ]
 
@@ -77,6 +80,7 @@ function App() {
     id: '',
     text: '',
     imageUrl: '',
+    funFact: '',
     options: ['', '', '', ''],
     correctOptionIndex: 0
   })
@@ -87,6 +91,7 @@ function App() {
       id: generateUUID(),
       text: '',
       imageUrl: '',
+      funFact: '',
       options: ['', '', '', ''],
       correctOptionIndex: 0
     })
@@ -136,13 +141,15 @@ function App() {
         text: "¿Cuál es la fuente de verdad en esta arquitectura?",
         imageUrl: "https://ejemplo.com/diagrama.jpg",
         options: ["La base de datos", "El cliente del Host", "El servidor en memoria", "El LocalStorage"],
-        correctOptionIndex: 2
+        correctOptionIndex: 2,
+        funFact: "En una arquitectura centralizada, el servidor es quien mantiene el estado canónico del juego, garantizando consistencia entre todos los clientes."
       },
       {
         text: "¿Qué biblioteca se utiliza para tiempo real?",
         imageUrl: "",
         options: ["HTTP Long Polling", "WebRTC", "Socket.IO", "FTP"],
-        correctOptionIndex: 2
+        correctOptionIndex: 2,
+        funFact: "Socket.IO se apoya en WebSockets pero tiene fallback automático a Long Polling si el entorno no lo soporta."
       }
     ];
     const blob = new Blob([JSON.stringify(templateData, null, 2)], { type: "application/json" });
@@ -156,9 +163,9 @@ function App() {
 
   const handleDownloadCSVTemplate = () => {
     const csvContent =
-      "text,imageUrl,optionA,optionB,optionC,optionD,correctOptionIndex\n" +
-      '"¿Cuál es la fuente de verdad en esta arquitectura?","https://ejemplo.com/diagrama.jpg","La base de datos","El cliente del Host","El servidor en memoria","El LocalStorage",2\n' +
-      '"¿Qué biblioteca se utiliza para tiempo real?","","HTTP Long Polling","WebRTC","Socket.IO","FTP",2\n';
+      "text,imageUrl,optionA,optionB,optionC,optionD,correctOptionIndex,funFact\n" +
+      '"¿Cuál es la fuente de verdad en esta arquitectura?","https://ejemplo.com/diagrama.jpg","La base de datos","El cliente del Host","El servidor en memoria","El LocalStorage",2,"En una arquitectura centralizada el servidor mantiene el estado canónico del juego."\n' +
+      '"¿Qué biblioteca se utiliza para tiempo real?","","HTTP Long Polling","WebRTC","Socket.IO","FTP",2,"Socket.IO tiene fallback automático a Long Polling si WebSockets no está disponible."\n';
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -170,11 +177,12 @@ function App() {
 
   // Exportar preguntas actuales a JSON
   const handleExportJSON = () => {
-    const exportData = questions.map(({ text, imageUrl, options, correctOptionIndex }) => ({
+    const exportData = questions.map(({ text, imageUrl, options, correctOptionIndex, funFact }) => ({
       text,
       imageUrl: imageUrl || '',
       options,
-      correctOptionIndex
+      correctOptionIndex,
+      funFact: funFact || ''
     }));
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -187,7 +195,7 @@ function App() {
 
   // Exportar preguntas actuales a CSV
   const handleExportCSV = () => {
-    const header = "text,imageUrl,optionA,optionB,optionC,optionD,correctOptionIndex\n";
+    const header = "text,imageUrl,optionA,optionB,optionC,optionD,correctOptionIndex,funFact\n";
     const rows = questions.map(q => {
       const escapedText = `"${q.text.replace(/"/g, '""')}"`;
       const escapedImg = `"${(q.imageUrl || '').replace(/"/g, '""')}"`;
@@ -195,7 +203,8 @@ function App() {
       const optB = `"${(q.options[1] || '').replace(/"/g, '""')}"`;
       const optC = `"${(q.options[2] || '').replace(/"/g, '""')}"`;
       const optD = `"${(q.options[3] || '').replace(/"/g, '""')}"`;
-      return `${escapedText},${escapedImg},${optA},${optB},${optC},${optD},${q.correctOptionIndex}`;
+      const escapedFunFact = `"${(q.funFact || '').replace(/"/g, '""')}"`;
+      return `${escapedText},${escapedImg},${optA},${optB},${optC},${optD},${q.correctOptionIndex},${escapedFunFact}`;
     }).join("\n");
 
     const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
@@ -252,7 +261,8 @@ function App() {
               text: String(item.text),
               imageUrl: item.imageUrl ? String(item.imageUrl) : '',
               options: [String(item.options[0]), String(item.options[1]), String(item.options[2]), String(item.options[3])],
-              correctOptionIndex: Math.min(3, Math.max(0, correctIndex))
+              correctOptionIndex: Math.min(3, Math.max(0, correctIndex)),
+              funFact: item.funFact ? String(item.funFact) : ''
             };
           });
 
@@ -268,19 +278,21 @@ function App() {
           const validQuestions: Question[] = dataLines.map((line, idx) => {
             const cols = parseCSVLine(line);
             if (cols.length < 7) {
-              throw new Error(`La línea #${idx + (hasHeader ? 2 : 1)} del CSV debe contener 7 columnas.`);
+              throw new Error(`La línea #${idx + (hasHeader ? 2 : 1)} del CSV debe contener al menos 7 columnas.`);
             }
             const text = cols[0];
             const imageUrl = cols[1];
             const options: [string, string, string, string] = [cols[2], cols[3], cols[4], cols[5]];
             const correctOptionIndex = parseInt(cols[6], 10);
+            const funFact = cols[7] || '';
 
             return {
               id: generateUUID(),
               text,
               imageUrl: imageUrl || '',
               options,
-              correctOptionIndex: isNaN(correctOptionIndex) ? 0 : Math.min(3, Math.max(0, correctOptionIndex))
+              correctOptionIndex: isNaN(correctOptionIndex) ? 0 : Math.min(3, Math.max(0, correctOptionIndex)),
+              funFact
             };
           });
 
@@ -321,6 +333,7 @@ function App() {
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
   const selectedOptionRef = useRef<number | null>(null)  // ref para evitar stale closure en socket handlers
   const [correctIndex, setCorrectIndex] = useState<number | null>(null)
+  const [revealFunFact, setRevealFunFact] = useState<string>('')
   const [answerStats, setAnswerStats] = useState<[number, number, number, number] | null>(null)
   const [scoreboard, setScoreboard] = useState<ScoreboardUpdatePayload['players']>([])
   const [podium, setPodium] = useState<GameFinishedPayload['podium']>([])
@@ -430,6 +443,7 @@ function App() {
         setSelectedOption(null)
         selectedOptionRef.current = null  // limpiar ref al iniciar nueva ronda
         setCorrectIndex(null)
+        setRevealFunFact('')
         setAnswerStats(null)
       } else if (payload.status === 'ANSWERING') {
         phaseStartTimestamp.current = Date.now()
@@ -439,6 +453,7 @@ function App() {
     socket.on('answers:reveal', (payload: AnswersRevealPayload) => {
       setGamePhase('REVEALING')
       setCorrectIndex(payload.correctOptionIndex)
+      setRevealFunFact(payload.funFact || '')
       setAnswerStats(payload.stats.optionCounts)
       setTimeLeft(config.revealTime)
 
@@ -894,6 +909,19 @@ function App() {
                 </div>
 
                 <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                    💡 Dato Curioso (Opcional)
+                  </label>
+                  <textarea
+                    value={draftQuestion.funFact || ''}
+                    onChange={(e) => setDraftQuestion({ ...draftQuestion, funFact: e.target.value })}
+                    placeholder="Ej: El servidor actúa como fuente de verdad para garantizar consistencia entre todos los jugadores..."
+                    rows={2}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 focus:outline-none focus:border-indigo-500 text-white text-sm resize-none"
+                  />
+                </div>
+
+                <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                     Opciones de Respuesta (Marcá la Correcta) *
                   </label>
@@ -1176,6 +1204,14 @@ function App() {
                   })}
                 </div>
 
+                {/* Fun Fact during Reveal — Host */}
+                {gamePhase === 'REVEALING' && revealFunFact && (
+                  <div className="animate-pop-in bg-indigo-950/50 border border-indigo-500/30 rounded-2xl p-5 shadow-lg">
+                    <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">💡 ¿Sabías que...?</p>
+                    <p className="text-slate-200 text-sm leading-relaxed">{revealFunFact}</p>
+                  </div>
+                )}
+
                 {/* Scoreboard displayed on Host Screen during Reveal */}
                 {gamePhase === 'REVEALING' && (
                   <div className="bg-slate-800/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
@@ -1265,6 +1301,12 @@ function App() {
                         <p className="text-5xl mb-2">💥</p>
                         <p className="text-red-400 font-extrabold text-2xl tracking-tight">INCORRECTO</p>
                         <p className="text-slate-400 text-sm mt-1">La respuesta correcta era: <span className="text-green-400 font-bold">{currentQuestion.options[correctIndex!]}</span></p>
+                      </div>
+                    )}
+                    {revealFunFact && (
+                      <div className="mt-4 pt-4 border-t border-slate-700 animate-pop-in" style={{ animationDelay: '0.3s' }}>
+                        <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">💡 ¿Sabías que...?</p>
+                        <p className="text-slate-300 text-sm leading-relaxed">{revealFunFact}</p>
                       </div>
                     )}
                   </div>

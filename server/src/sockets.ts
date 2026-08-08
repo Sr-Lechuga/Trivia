@@ -147,8 +147,10 @@ export function setupSockets(io: Server) {
       }
     });
 
+    const currentQuestion = session.questions[session.currentQuestionIndex];
     const revealPayload: AnswersRevealPayload = {
       correctOptionIndex: round.correctOptionIndex,
+      funFact: currentQuestion.funFact || undefined,
       stats: { optionCounts }
     };
 

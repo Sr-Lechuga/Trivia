@@ -14,6 +14,7 @@ export interface Question {
   imageUrl?: string;        // Opcional
   options: [string, string, string, string]; // Exactamente 4 opciones
   correctOptionIndex: number; // Índice de la respuesta correcta (0-3)
+  funFact?: string;         // Dato curioso / explicación que se muestra al revelar
 }
 
 export type SessionStatus = 'LOBBY' | 'READING' | 'ANSWERING' | 'REVEALING' | 'FINISHED';
@@ -110,6 +111,7 @@ export interface RoundStartPayload {
 
 export interface AnswersRevealPayload {
   correctOptionIndex: number;
+  funFact?: string;         // Dato curioso de la pregunta (opcional)
   stats: {
     optionCounts: [number, number, number, number]; // Cantidad de respuestas por opción [A, B, C, D]
   };
