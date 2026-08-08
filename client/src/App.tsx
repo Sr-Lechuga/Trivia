@@ -748,7 +748,8 @@ function App() {
               </div>
 
               <div>
-                <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+                {/* Header: título + botones de plantilla, importar y agregar */}
+                <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
                   <h3 className="text-lg font-bold text-white">Preguntas ({questions.length})</h3>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
@@ -766,23 +767,6 @@ function App() {
                       title="Descargar plantilla CSV de ejemplo"
                     >
                       📥 Plantilla CSV
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleExportJSON}
-                      className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
-                      title="Exportar preguntas actuales a archivo JSON"
-                    >
-                      📤 Exportar JSON
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleExportCSV}
-                      className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
-                      title="Exportar preguntas actuales a archivo CSV"
-                    >
-                      📤 Exportar CSV
                     </button>
 
                     <label className="py-1.5 px-3 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold text-violet-300 cursor-pointer transition-all active:scale-95 flex items-center gap-1">
@@ -805,6 +789,7 @@ function App() {
                   </div>
                 </div>
 
+                {/* Lista de preguntas */}
                 <div className="max-h-72 overflow-y-auto space-y-3 pr-2">
                   {questions.map((q, idx) => (
                     <div key={idx} className="p-4 rounded-xl bg-slate-950/60 border border-slate-800/80 flex flex-col justify-between gap-3">
@@ -830,15 +815,18 @@ function App() {
                         {q.imageUrl && (
                           <p className="text-xs text-slate-500 truncate mt-1">🖼️ {q.imageUrl}</p>
                         )}
+                        {q.funFact && (
+                          <p className="text-xs text-indigo-400/70 truncate mt-1">💡 {q.funFact}</p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-1.5 text-xs">
                         {q.options.map((opt, oIdx) => (
-                          <div 
-                            key={oIdx} 
+                          <div
+                            key={oIdx}
                             className={`px-2.5 py-1.5 rounded border ${
-                              oIdx === q.correctOptionIndex 
-                                ? 'bg-green-500/10 border-green-500/40 text-green-300 font-bold' 
+                              oIdx === q.correctOptionIndex
+                                ? 'bg-green-500/10 border-green-500/40 text-green-300 font-bold'
                                 : 'bg-slate-900/60 border-slate-800 text-slate-400'
                             }`}
                           >
@@ -848,6 +836,26 @@ function App() {
                       </div>
                     </div>
                   ))}
+                </div>
+
+                {/* Botones de exportación debajo de la lista */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    type="button"
+                    onClick={handleExportJSON}
+                    className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
+                    title="Exportar preguntas actuales a archivo JSON"
+                  >
+                    📤 Exportar JSON
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportCSV}
+                    className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
+                    title="Exportar preguntas actuales a archivo CSV"
+                  >
+                    📤 Exportar CSV
+                  </button>
                 </div>
               </div>
 
