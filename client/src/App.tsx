@@ -167,6 +167,45 @@ function App() {
     URL.revokeObjectURL(url);
   };
 
+  // Exportar preguntas actuales a JSON
+  const handleExportJSON = () => {
+    const exportData = questions.map(({ text, imageUrl, options, correctOptionIndex }) => ({
+      text,
+      imageUrl: imageUrl || '',
+      options,
+      correctOptionIndex
+    }));
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "preguntas_trivia.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Exportar preguntas actuales a CSV
+  const handleExportCSV = () => {
+    const header = "text,imageUrl,optionA,optionB,optionC,optionD,correctOptionIndex\n";
+    const rows = questions.map(q => {
+      const escapedText = `"${q.text.replace(/"/g, '""')}"`;
+      const escapedImg = `"${(q.imageUrl || '').replace(/"/g, '""')}"`;
+      const optA = `"${(q.options[0] || '').replace(/"/g, '""')}"`;
+      const optB = `"${(q.options[1] || '').replace(/"/g, '""')}"`;
+      const optC = `"${(q.options[2] || '').replace(/"/g, '""')}"`;
+      const optD = `"${(q.options[3] || '').replace(/"/g, '""')}"`;
+      return `${escapedText},${escapedImg},${optA},${optB},${optC},${optD},${q.correctOptionIndex}`;
+    }).join("\n");
+
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "preguntas_trivia.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Parser CSV helper
   const parseCSVLine = (line: string): string[] => {
     const result: string[] = [];
@@ -696,6 +735,23 @@ function App() {
                       title="Descargar plantilla CSV de ejemplo"
                     >
                       📥 Plantilla CSV
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleExportJSON}
+                      className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
+                      title="Exportar preguntas actuales a archivo JSON"
+                    >
+                      📤 Exportar JSON
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleExportCSV}
+                      className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
+                      title="Exportar preguntas actuales a archivo CSV"
+                    >
+                      📤 Exportar CSV
                     </button>
 
                     <label className="py-1.5 px-3 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold text-violet-300 cursor-pointer transition-all active:scale-95 flex items-center gap-1">

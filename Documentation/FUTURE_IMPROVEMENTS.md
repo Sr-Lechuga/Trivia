@@ -2,8 +2,8 @@
 
 ## Contenido
 
-- Banco de preguntas
-- Importar CSV/Excel
+- [x] Banco de preguntas
+- [x] Importar CSV/Excel
 - Exportar resultados
 - Guardado de partidas
 - Temas visuales
