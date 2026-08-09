@@ -6,10 +6,10 @@ const router = Router();
 
 // Endpoint POST /session para crear una sesión
 router.post('/session', (req: Request, res: Response) => {
-  const { config, questions } = req.body as HostCreateSessionPayload;
+  const { config, questions, language } = req.body as HostCreateSessionPayload;
 
   // Validaciones básicas
-  if (!config || !questions || !Array.isArray(questions)) {
+  if (!config || !questions || !Array.isArray(questions) || (language !== 'es' && language !== 'en')) {
     return res.status(400).json({ error: 'Configuración o preguntas inválidas.' });
   }
 
@@ -19,7 +19,7 @@ router.post('/session', (req: Request, res: Response) => {
     }
   }
 
-  const session = createSession(config, questions);
+  const session = createSession(config, questions, language);
   return res.status(201).json(session);
 });
 

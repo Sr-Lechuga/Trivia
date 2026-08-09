@@ -1,5 +1,7 @@
 // Tipos y Modelos Compartidos para la Trivia
 
+export type Language = 'es' | 'en';
+
 export interface TriviaConfig {
   maxScore: number;         // Puntaje máximo por pregunta (ej. 1000)
   readTime: number;         // Tiempo de lectura en segundos (ej. 5)
@@ -30,6 +32,7 @@ export interface Player {
 
 export interface Session {
   id: string;               // ID único de la sesión (código de partida)
+  language: Language;       // Idioma seleccionado por el Host para toda la partida
   status: SessionStatus;
   config: TriviaConfig;
   questions: Question[];
@@ -44,6 +47,7 @@ export interface Session {
 export interface HostCreateSessionPayload {
   config: TriviaConfig;
   questions: Question[];
+  language: Language;
 }
 
 export interface HostStartGamePayload {
@@ -75,6 +79,7 @@ export interface ReconnectResponsePayload {
   // Restore state
   playerName?: string;
   playerScore?: number;
+  language?: Language;
   sessionStatus?: SessionStatus;
   currentQuestion?: {
     id: string;

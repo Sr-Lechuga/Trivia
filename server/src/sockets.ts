@@ -269,6 +269,7 @@ export function setupSockets(io: Server) {
         success: true,
         playerName: player.name,
         playerScore: player.score,
+        language: session.language,
         sessionStatus: session.status,
         currentQuestion: currentQ && round ? {
           id: currentQ.id,
@@ -288,7 +289,7 @@ export function setupSockets(io: Server) {
     });
 
     // Registro/Unión de Jugador
-    socket.on('player:join', (payload: PlayerJoinPayload, callback?: (response: { success: boolean; error?: string }) => void) => {
+    socket.on('player:join', (payload: PlayerJoinPayload, callback?: (response: { success: boolean; error?: string; language?: 'es' | 'en' }) => void) => {
       const { sessionId, name, localUuid } = payload;
       const session = getSession(sessionId);
 
@@ -337,7 +338,7 @@ export function setupSockets(io: Server) {
       socket.join(sessionId);
       console.log(`[Socket] Jugador ${player.name} unido a la sesión: ${sessionId}`);
 
-      if (callback) callback({ success: true });
+      if (callback) callback({ success: true, language: session.language });
 
       const lobbyUpdatePayload: LobbyUpdatePayload = {
         sessionId,

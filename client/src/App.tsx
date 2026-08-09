@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { socket } from './socket'
 import { QRCodeSVG } from 'qrcode.react'
 import { sounds } from './sound'
+import { useLanguage } from './i18n/LanguageContext'
 import type { 
   Question, 
   TriviaConfig, 
@@ -14,29 +15,57 @@ import type {
   GameFinishedPayload
 } from '../../shared/types'
 
-const DEFAULT_QUESTIONS: Question[] = [
-  {
-    id: '1',
-    text: '¿Cuál es la única fuente de verdad en la arquitectura de esta Trivia?',
-    options: ['La base de datos', 'El cliente del Host', 'El servidor', 'El LocalStorage'],
-    correctOptionIndex: 2,
-    funFact: 'En arquitecturas cliente-servidor, el servidor actúa como árbitro central. Esto garantiza que todos los jugadores vean el mismo estado del juego, sin importar la latencia de red de cada uno.'
-  },
-  {
-    id: '2',
-    text: '¿Qué biblioteca se usa para la comunicación en tiempo real?',
-    options: ['HTTP Polling', 'WebRTC', 'Socket.IO', 'gRPC'],
-    correctOptionIndex: 2,
-    funFact: 'Socket.IO combina WebSockets con fallbacks automáticos (como Long Polling) para garantizar conectividad incluso en redes restrictivas. También maneja reconexiones automáticamente.'
-  },
-  {
-    id: '3',
-    text: '¿En qué almacenamiento local persistimos el UUID de reconexión?',
-    options: ['Cookies', 'SessionStorage', 'IndexedDB', 'LocalStorage'],
-    correctOptionIndex: 3,
-    funFact: 'localStorage persiste los datos incluso al cerrar el navegador, a diferencia de sessionStorage que se limpia al cerrar la pestaña. Esto es lo que permite la reconexión automática al volver a la app.'
+function getDefaultQuestions(language: 'es' | 'en'): Question[] {
+  if (language === 'en') {
+    return [
+      {
+        id: '1',
+        text: 'What is the single source of truth in this Trivia architecture?',
+        options: ['The database', 'The Host client', 'The server', 'LocalStorage'],
+        correctOptionIndex: 2,
+        funFact: 'In client-server architectures, the server acts as the central referee. This ensures every player sees the same game state regardless of network latency.'
+      },
+      {
+        id: '2',
+        text: 'Which library is used for real-time communication?',
+        options: ['HTTP Polling', 'WebRTC', 'Socket.IO', 'gRPC'],
+        correctOptionIndex: 2,
+        funFact: 'Socket.IO combines WebSockets with automatic fallbacks such as Long Polling, ensuring connectivity even on restrictive networks. It also handles reconnections automatically.'
+      },
+      {
+        id: '3',
+        text: 'Where do we persist the reconnection UUID locally?',
+        options: ['Cookies', 'SessionStorage', 'IndexedDB', 'LocalStorage'],
+        correctOptionIndex: 3,
+        funFact: 'localStorage persists data even after closing the browser, unlike sessionStorage. This enables automatic reconnection when returning to the app.'
+      }
+    ]
   }
-]
+
+  return [
+    {
+      id: '1',
+      text: '¿Cuál es la única fuente de verdad en la arquitectura de esta Trivia?',
+      options: ['La base de datos', 'El cliente del Host', 'El servidor', 'El LocalStorage'],
+      correctOptionIndex: 2,
+      funFact: 'En arquitecturas cliente-servidor, el servidor actúa como árbitro central. Esto garantiza que todos los jugadores vean el mismo estado del juego, sin importar la latencia de red de cada uno.'
+    },
+    {
+      id: '2',
+      text: '¿Qué biblioteca se usa para la comunicación en tiempo real?',
+      options: ['HTTP Polling', 'WebRTC', 'Socket.IO', 'gRPC'],
+      correctOptionIndex: 2,
+      funFact: 'Socket.IO combina WebSockets con fallbacks automáticos (como Long Polling) para garantizar conectividad incluso en redes restrictivas. También maneja reconexiones automáticamente.'
+    },
+    {
+      id: '3',
+      text: '¿En qué almacenamiento local persistimos el UUID de reconexión?',
+      options: ['Cookies', 'SessionStorage', 'IndexedDB', 'LocalStorage'],
+      correctOptionIndex: 3,
+      funFact: 'localStorage persiste los datos incluso al cerrar el navegador, a diferencia de sessionStorage que se limpia al cerrar la pestaña. Esto es lo que permite la reconexión automática al volver a la app.'
+    }
+  ]
+}
 
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -53,7 +82,10 @@ function generateUUID(): string {
   });
 }
 
+
 function App() {
+  const { lang, setLang, t } = useLanguage()
+
   const [role, setRole] = useState<'HOST' | 'PLAYER' | null>(null)
   const [screen, setScreen] = useState<'INITIAL' | 'HOST_CONFIG' | 'PLAYER_JOIN' | 'LOBBY' | 'GAME'>('INITIAL')
   const [gamePhase, setGamePhase] = useState<'READING' | 'ANSWERING' | 'REVEALING' | 'FINISHED'>('READING')
@@ -71,7 +103,16 @@ function App() {
     revealTime: 5,
     randomizeQuestions: false
   })
-  const [questions, setQuestions] = useState<Question[]>(DEFAULT_QUESTIONS)
+  const [questions, setQuestions] = useState<Question[]>(() => getDefaultQuestions(lang))
+
+  const handleLanguageChange = (nextLanguage: 'es' | 'en') => {
+    if (sessionId && screen !== 'INITIAL') return
+    const usingDefaultQuestions = JSON.stringify(questions) === JSON.stringify(getDefaultQuestions(lang))
+    if (usingDefaultQuestions) {
+      setQuestions(getDefaultQuestions(nextLanguage))
+    }
+    setLang(nextLanguage)
+  }
 
   // Estados para el editor de preguntas
   const [isQuestionModalOpen, setIsQuestionModalOpen] = useState(false)
@@ -106,7 +147,7 @@ function App() {
 
   const handleDeleteQuestion = (index: number) => {
     if (questions.length <= 1) {
-      setErrorMsg('Debe haber al menos 1 pregunta en la trivia.')
+      setErrorMsg(t('validationMinQuestion'))
       return
     }
     setErrorMsg('')
@@ -115,11 +156,11 @@ function App() {
 
   const handleSaveDraftQuestion = () => {
     if (!draftQuestion.text.trim()) {
-      setErrorMsg('El texto de la pregunta no puede estar vacío.')
+      setErrorMsg(t('validationQuestionText'))
       return
     }
     if (draftQuestion.options.some(opt => !opt.trim())) {
-      setErrorMsg('Las 4 opciones de respuesta deben estar completas.')
+      setErrorMsg(t('validationOptions'))
       return
     }
 
@@ -249,11 +290,11 @@ function App() {
       try {
         if (fileName.endsWith('.json')) {
           const parsed = JSON.parse(content);
-          if (!Array.isArray(parsed)) throw new Error('El JSON debe contener un array de preguntas.');
+          if (!Array.isArray(parsed)) throw new Error(t('errorJsonNotArray'));
 
           const validQuestions: Question[] = parsed.map((item, idx) => {
             if (!item.text || !Array.isArray(item.options) || item.options.length !== 4) {
-              throw new Error(`La pregunta #${idx + 1} no tiene texto o exactamente 4 opciones.`);
+              throw new Error(t('errorJsonQuestionShape', { n: idx + 1 }));
             }
             const correctIndex = typeof item.correctOptionIndex === 'number' ? item.correctOptionIndex : 0;
             return {
@@ -270,7 +311,7 @@ function App() {
           setErrorMsg('');
         } else if (fileName.endsWith('.csv')) {
           const lines = content.split(/\r?\n/).filter(line => line.trim().length > 0);
-          if (lines.length <= 1) throw new Error('El CSV está vacío o solo contiene la cabecera.');
+          if (lines.length <= 1) throw new Error(t('errorEmptyCSV'));
 
           const hasHeader = lines[0].toLowerCase().includes('text') || lines[0].toLowerCase().includes('option');
           const dataLines = hasHeader ? lines.slice(1) : lines;
@@ -278,7 +319,7 @@ function App() {
           const validQuestions: Question[] = dataLines.map((line, idx) => {
             const cols = parseCSVLine(line);
             if (cols.length < 7) {
-              throw new Error(`La línea #${idx + (hasHeader ? 2 : 1)} del CSV debe contener al menos 7 columnas.`);
+              throw new Error(t('errorCsvLineColumns', { line: idx + (hasHeader ? 2 : 1) }));
             }
             const text = cols[0];
             const imageUrl = cols[1];
@@ -299,10 +340,10 @@ function App() {
           setQuestions(validQuestions);
           setErrorMsg('');
         } else {
-          throw new Error('Formato no soportado. Seleccioná un archivo .json o .csv');
+          throw new Error(t('errorUnsupportedFormat'));
         }
       } catch (err: any) {
-        setErrorMsg(err.message || 'Error al procesar el archivo.');
+        setErrorMsg(err.message || t('errorProcessingFile'));
       }
     };
 
@@ -374,6 +415,7 @@ function App() {
               return
             }
 
+            setLang(res.language || lang)
             setRole('PLAYER')
             setSessionId(savedSessionId)
             setPlayerName(res.playerName || savedName)
@@ -479,7 +521,7 @@ function App() {
     });
 
     socket.on('connect_error', () => {
-      setErrorMsg('Error al conectar con el servidor.')
+      setErrorMsg(t('errorConnect'))
     })
 
     socket.on('error:join', (err: { message: string }) => {
@@ -512,12 +554,12 @@ function App() {
       const response = await fetch(`${getApiUrl()}/api/session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ config, questions })
+        body: JSON.stringify({ config, questions, language: lang })
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'No se pudo crear la sesión.')
+        throw new Error(errorData.error || t('errorCreateSession'))
       }
 
       const session = await response.json()
@@ -527,14 +569,14 @@ function App() {
       socket.emit('host:joinSession', { sessionId: session.id })
       setScreen('LOBBY')
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error de red al intentar crear la sesión.')
+      setErrorMsg(err.message || t('errorNetworkSession'))
     }
   }
 
   // Unirse a la sesión
   const handleJoinSession = () => {
     if (!sessionId.trim() || !playerName.trim()) {
-      setErrorMsg('Completá el código y tu apodo.')
+      setErrorMsg(t('validationCodeAndNickname'))
       return;
     }
     setErrorMsg('')
@@ -546,8 +588,9 @@ function App() {
       localUuid: playerUuid
     }
 
-    socket.emit('player:join', joinPayload, (res: { success: boolean; error?: string }) => {
+    socket.emit('player:join', joinPayload, (res: { success: boolean; error?: string; language?: 'es' | 'en' }) => {
       if (res.success) {
+        setLang(res.language || lang)
         // Persistir sesión y nombre para reconexión automática
         localStorage.setItem('trivia_session_id', sessionId.trim().toUpperCase())
         localStorage.setItem('trivia_player_name', playerName.trim())
@@ -621,16 +664,41 @@ function App() {
             T
           </div>
           <span className="font-bold text-xl tracking-tight bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-            Trivia realtime
+            {t('appName')}
           </span>
         </div>
-        <div>
+        <div className="flex items-center gap-3">
+          {/* Language toggle */}
+          <div className="flex items-center rounded-lg border border-slate-700 overflow-hidden text-xs font-semibold">
+            <button
+              onClick={() => handleLanguageChange('es')}
+              disabled={Boolean(sessionId && screen !== 'INITIAL')}
+              className={`px-2.5 py-1 transition-colors ${
+                lang === 'es'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:bg-slate-800'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              ES
+            </button>
+            <button
+              onClick={() => handleLanguageChange('en')}
+              disabled={Boolean(sessionId && screen !== 'INITIAL')}
+              className={`px-2.5 py-1 transition-colors ${
+                lang === 'en'
+                  ? 'bg-indigo-600 text-white'
+                  : 'text-slate-400 hover:bg-slate-800'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              EN
+            </button>
+          </div>
           {role && (
             <button 
               onClick={resetAll}
               className="text-xs py-1 px-3 rounded border border-slate-700 text-slate-400 hover:bg-slate-800 transition-colors"
             >
-              Salir
+              {t('exit')}
             </button>
           )}
         </div>
@@ -650,10 +718,10 @@ function App() {
           <div className="w-full max-w-3xl flex flex-col items-center">
             <div className="text-center space-y-6 mb-12">
               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent">
-                Partidas interactivas en tiempo real
+                {t('heroTitle')}
               </h1>
               <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto">
-                Creá trivias al estilo Kahoot, compartí el código con tus amigos y competí para ver quién responde más rápido.
+                {t('heroSubtitle')}
               </p>
             </div>
 
@@ -665,16 +733,16 @@ function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 3m0-3a2 2 0 110 3m-9 8h10M3 5h10M9 3v2m1.248 11.248a6 6 0 11-8.486 0M3 9h.01M9 9h.01M3 12h.01M9 12h.01M3 15h.01M9 15h.01M3 18h.01M9 18h.01" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Crear Partida</h2>
+                  <h2 className="text-2xl font-bold text-white mb-2">{t('createGame')}</h2>
                   <p className="text-slate-400 mb-6 text-sm">
-                    Configurá los tiempos, cargá las preguntas y administrá el juego en vivo como Host.
+                    {t('createGameDesc')}
                   </p>
                 </div>
                 <button 
                   onClick={() => { setRole('HOST'); setScreen('HOST_CONFIG'); }}
                   className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 font-semibold text-white transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
                 >
-                  Configurar Trivia
+                  {t('createGameBtn')}
                 </button>
               </div>
 
@@ -685,16 +753,16 @@ function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Unirse a Partida</h2>
+                  <h2 className="text-2xl font-bold text-white mb-2">{t('joinGame')}</h2>
                   <p className="text-slate-400 mb-6 text-sm">
-                    Ingresá el código PIN de la partida y registrate con tu apodo para competir.
+                    {t('joinGameDesc')}
                   </p>
                 </div>
                 <button 
                   onClick={() => { setRole('PLAYER'); setScreen('PLAYER_JOIN'); }}
                   className="w-full py-3 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 font-semibold text-white transition-all active:scale-95"
                 >
-                  Unirse a un Lobby
+                  {t('joinGameBtn')}
                 </button>
               </div>
             </div>
@@ -705,12 +773,12 @@ function App() {
         {screen === 'HOST_CONFIG' && (
           <div className="w-full max-w-2xl bg-slate-800/40 border border-slate-800 rounded-2xl p-8 shadow-xl">
             <h2 className="text-3xl font-extrabold text-white mb-6 bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
-              Configuración de Trivia
+              {t('triviaConfig')}
             </h2>
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Puntaje Máximo</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('maxScore')}</label>
                   <input 
                     type="number" 
                     value={config.maxScore}
@@ -719,7 +787,7 @@ function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tiempo de Lectura (s)</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('readTime')}</label>
                   <input 
                     type="number" 
                     value={config.readTime}
@@ -728,7 +796,7 @@ function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tiempo de Respuesta (s)</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('answerTime')}</label>
                   <input 
                     type="number" 
                     value={config.answerTime}
@@ -737,7 +805,7 @@ function App() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tiempo de Revelado (s)</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('revealTime')}</label>
                   <input 
                     type="number" 
                     value={config.revealTime}
@@ -750,27 +818,27 @@ function App() {
               <div>
                 {/* Header: título + botones de plantilla, importar y agregar */}
                 <div className="flex flex-wrap justify-between items-center mb-3 gap-2">
-                  <h3 className="text-lg font-bold text-white">Preguntas ({questions.length})</h3>
+                  <h3 className="text-lg font-bold text-white">{t('questions')} ({questions.length})</h3>
                   <div className="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={handleDownloadJSONTemplate}
                       className="py-1.5 px-2.5 rounded-lg border border-slate-700 bg-slate-950/60 hover:bg-slate-800 text-xs font-medium text-slate-300 transition-all"
-                      title="Descargar plantilla JSON de ejemplo"
+                      title={t('downloadJsonTitle')}
                     >
-                      📥 Plantilla JSON
+                      📥 {t('downloadJsonTemplate')}
                     </button>
                     <button
                       type="button"
                       onClick={handleDownloadCSVTemplate}
                       className="py-1.5 px-2.5 rounded-lg border border-slate-700 bg-slate-950/60 hover:bg-slate-800 text-xs font-medium text-slate-300 transition-all"
-                      title="Descargar plantilla CSV de ejemplo"
+                      title={t('downloadCsvTitle')}
                     >
-                      📥 Plantilla CSV
+                      📥 {t('downloadCsvTemplate')}
                     </button>
 
                     <label className="py-1.5 px-3 rounded-lg bg-violet-600/20 hover:bg-violet-600/30 border border-violet-500/30 text-xs font-semibold text-violet-300 cursor-pointer transition-all active:scale-95 flex items-center gap-1">
-                      <span>📂</span> Importar
+                      <span>📂</span> {t('importQuestions')}
                       <input
                         type="file"
                         accept=".json,.csv"
@@ -784,7 +852,7 @@ function App() {
                       onClick={handleOpenAddQuestion}
                       className="py-1.5 px-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-xs font-semibold text-white transition-all active:scale-95 flex items-center gap-1 shadow-md shadow-indigo-500/20"
                     >
-                      <span>+</span> Agregar
+                      <span>+</span> {t('addQuestion')}
                     </button>
                   </div>
                 </div>
@@ -801,13 +869,13 @@ function App() {
                               onClick={() => handleOpenEditQuestion(idx)}
                               className="text-xs px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
                             >
-                              Editar
+                              {t('edit')}
                             </button>
                             <button
                               onClick={() => handleDeleteQuestion(idx)}
                               className="text-xs px-2.5 py-1 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors"
                             >
-                              Eliminar
+                              {t('delete')}
                             </button>
                           </div>
                         </div>
@@ -844,17 +912,17 @@ function App() {
                     type="button"
                     onClick={handleExportJSON}
                     className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
-                    title="Exportar preguntas actuales a archivo JSON"
+                    title={t('exportJsonTitle')}
                   >
-                    📤 Exportar JSON
+                    📤 {t('exportJson')}
                   </button>
                   <button
                     type="button"
                     onClick={handleExportCSV}
                     className="py-1.5 px-2.5 rounded-lg border border-indigo-500/40 bg-indigo-950/40 hover:bg-indigo-900/50 text-xs font-medium text-indigo-200 transition-all"
-                    title="Exportar preguntas actuales a archivo CSV"
+                    title={t('exportCsvTitle')}
                   >
-                    📤 Exportar CSV
+                    📤 {t('exportCsv')}
                   </button>
                 </div>
               </div>
@@ -864,13 +932,13 @@ function App() {
                   onClick={() => setScreen('INITIAL')}
                   className="flex-1 py-3 px-4 rounded-xl border border-slate-700 text-slate-300 font-semibold hover:bg-slate-800 transition-all active:scale-95"
                 >
-                  Atrás
+                  {t('back')}
                 </button>
                 <button 
                   onClick={handleCreateSession}
                   className="flex-1 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 font-semibold text-white transition-all shadow-lg shadow-indigo-500/25 active:scale-95"
                 >
-                  Crear Partida
+                  {t('createGameAction')}
                 </button>
               </div>
             </div>
@@ -883,7 +951,7 @@ function App() {
             <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 w-full max-w-xl shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
               <div className="flex justify-between items-center border-b border-slate-800 pb-3">
                 <h3 className="text-xl font-bold text-white">
-                  {editingQuestionIndex !== null ? `Editar Pregunta #${editingQuestionIndex + 1}` : 'Nueva Pregunta'}
+                  {editingQuestionIndex !== null ? `${t('editQuestion')} #${editingQuestionIndex + 1}` : t('newQuestion')}
                 </h3>
                 <button 
                   onClick={() => setIsQuestionModalOpen(false)}
@@ -895,35 +963,35 @@ function App() {
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Texto de la Pregunta *</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{t('questionText')}</label>
                   <input
                     type="text"
                     value={draftQuestion.text}
                     onChange={(e) => setDraftQuestion({ ...draftQuestion, text: e.target.value })}
-                    placeholder="Ej. ¿En qué año se lanzó JavaScript?"
+                    placeholder={t('questionTextPlaceholder')}
                     className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 focus:outline-none focus:border-indigo-500 text-white text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">URL de Imagen (Opcional)</label>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{t('imageUrl')}</label>
                   <input
                     type="text"
                     value={draftQuestion.imageUrl || ''}
                     onChange={(e) => setDraftQuestion({ ...draftQuestion, imageUrl: e.target.value })}
-                    placeholder="https://ejemplo.com/imagen.jpg"
+                    placeholder={t('imageUrlPlaceholder')}
                     className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 focus:outline-none focus:border-indigo-500 text-white text-sm"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
-                    💡 Dato Curioso (Opcional)
+                    {t('funFact')}
                   </label>
                   <textarea
                     value={draftQuestion.funFact || ''}
                     onChange={(e) => setDraftQuestion({ ...draftQuestion, funFact: e.target.value })}
-                    placeholder="Ej: El servidor actúa como fuente de verdad para garantizar consistencia entre todos los jugadores..."
+                    placeholder={t('funFactPlaceholder')}
                     rows={2}
                     className="w-full py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-700 focus:outline-none focus:border-indigo-500 text-white text-sm resize-none"
                   />
@@ -931,7 +999,7 @@ function App() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                    Opciones de Respuesta (Marcá la Correcta) *
+                    {t('answerOptions')}
                   </label>
                   <div className="space-y-2.5">
                     {draftQuestion.options.map((opt, oIdx) => {
@@ -957,7 +1025,7 @@ function App() {
                               newOpts[oIdx] = e.target.value;
                               setDraftQuestion({ ...draftQuestion, options: newOpts });
                             }}
-                            placeholder={`Opción ${['A', 'B', 'C', 'D'][oIdx]}`}
+                            placeholder={`${t('optionPlaceholder')} ${['A', 'B', 'C', 'D'][oIdx]}`}
                             className={`w-full py-2 px-3 rounded-lg bg-slate-950 border text-sm text-white focus:outline-none ${
                               isCorrect ? 'border-green-500/50 bg-green-500/5' : 'border-slate-800 focus:border-indigo-500'
                             }`}
@@ -975,14 +1043,14 @@ function App() {
                   onClick={() => setIsQuestionModalOpen(false)}
                   className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700 text-slate-300 font-semibold hover:bg-slate-800 text-sm transition-all"
                 >
-                  Cancelar
+                  {t('cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={handleSaveDraftQuestion}
                   className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 font-semibold text-white text-sm transition-all shadow-md shadow-indigo-500/25"
                 >
-                  Guardar Pregunta
+                  {t('saveQuestion')}
                 </button>
               </div>
             </div>
@@ -993,28 +1061,28 @@ function App() {
         {screen === 'PLAYER_JOIN' && (
           <div className="w-full max-w-md bg-slate-800/40 border border-slate-800 rounded-2xl p-8 shadow-xl">
             <h2 className="text-3xl font-extrabold text-white mb-6 text-center bg-gradient-to-r from-violet-400 to-indigo-400 bg-clip-text text-transparent">
-              Ingresar a Partida
+              {t('joinTitle')}
             </h2>
             <div className="space-y-5">
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Código de Partida</label>
-                <input 
-                  type="text" 
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('gameCode')}</label>
+                <input
+                  type="text"
                   value={sessionId}
                   onChange={(e) => setSessionId(e.target.value.toUpperCase())}
-                  placeholder="Ej. ABCXYZ" 
+                  placeholder={t('gameCodePlaceholder')}
                   maxLength={6}
                   className="w-full py-3 px-4 rounded-xl bg-slate-950 border border-slate-700 text-center tracking-widest text-lg font-mono placeholder:tracking-normal placeholder:font-sans focus:outline-none focus:border-violet-500 text-white uppercase"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tu Apodo</label>
-                <input 
-                  type="text" 
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('yourNickname')}</label>
+                <input
+                  type="text"
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="Ej. Goku99" 
+                  placeholder={t('nicknamePlaceholder')}
                   className="w-full py-3 px-4 rounded-xl bg-slate-950 border border-slate-700 text-center focus:outline-none focus:border-violet-500 text-white"
                 />
               </div>
@@ -1024,13 +1092,13 @@ function App() {
                   onClick={() => setScreen('INITIAL')}
                   className="flex-1 py-3 px-4 rounded-xl border border-slate-700 text-slate-300 font-semibold hover:bg-slate-800 transition-all active:scale-95"
                 >
-                  Atrás
+                  {t('back')}
                 </button>
-                <button 
+                <button
                   onClick={handleJoinSession}
                   className="flex-1 py-3 px-4 rounded-xl bg-violet-600 hover:bg-violet-700 font-semibold text-white transition-all active:scale-95"
                 >
-                  Unirse
+                  {t('join')}
                 </button>
               </div>
             </div>
@@ -1042,13 +1110,13 @@ function App() {
           <div className="w-full max-w-xl bg-slate-800/40 border border-slate-800 rounded-2xl p-8 shadow-xl text-center space-y-8">
             <div>
               <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider block mb-1">
-                Lobby de Partida
+                {t('lobbyLabel')}
               </span>
               <h2 className="text-5xl font-mono font-bold text-white tracking-wider">
                 {sessionId}
               </h2>
               <p className="text-xs text-slate-500 mt-2 mb-4">
-                Escaneá el QR o ingresá el código de 6 caracteres para unirte.
+                {t('lobbyScanHint')}
               </p>
 
               {role === 'HOST' && (
@@ -1065,10 +1133,10 @@ function App() {
             {/* Players Connected */}
             <div className="border border-slate-800 rounded-xl p-4 bg-slate-950/40">
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3 text-left">
-                Jugadores en el lobby ({players.length})
+                {t('playersInLobby')} ({players.length})
               </h3>
               {players.length === 0 ? (
-                <p className="text-sm text-slate-500 py-6">Esperando a que se conecten jugadores...</p>
+                <p className="text-sm text-slate-500 py-6">{t('waitingForPlayers')}</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {players.map((p, idx) => (
@@ -1096,13 +1164,13 @@ function App() {
                   disabled={players.length === 0}
                   className="w-full py-4 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-600 hover:from-indigo-600 hover:to-violet-700 font-bold text-white transition-all shadow-lg shadow-indigo-500/25 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                 >
-                  Iniciar Partida
+                  {t('startGame')}
                 </button>
               ) : (
                 <div className="flex flex-col items-center justify-center py-4 space-y-2">
                   <div className="w-5 h-5 border-2 border-t-transparent border-violet-500 rounded-full animate-spin" />
                   <p className="text-sm text-slate-400 font-medium">
-                    Esperando que el Host inicie el juego...
+                    {t('waitingForHost')}
                   </p>
                 </div>
               )}
@@ -1116,10 +1184,10 @@ function App() {
             
             {/* Header info */}
             <div className="flex justify-between items-center text-sm font-semibold uppercase tracking-wider text-slate-400">
-              <div>Pregunta {currentQuestionNumber} de {totalQuestions}</div>
+              <div>{t('question')} {currentQuestionNumber} {t('of')} {totalQuestions}</div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-ping" />
-                Fase: {gamePhase}
+                {t('phase')}: {gamePhase}
               </div>
             </div>
 
@@ -1142,17 +1210,17 @@ function App() {
                   </div>
                   {gamePhase === 'READING' && (
                     <span className="text-sm px-3 py-1 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 font-semibold animate-pulse">
-                      ¡LEÉ LA PREGUNTA!
+                      {t('readNow')}
                     </span>
                   )}
                   {gamePhase === 'ANSWERING' && (
                     <span className="text-sm px-3 py-1 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 font-semibold">
-                      ¡RESPONDÉ AHORA!
+                      {t('answerNow')}
                     </span>
                   )}
                   {gamePhase === 'REVEALING' && (
                     <span className="text-sm px-3 py-1 rounded bg-green-500/10 text-green-400 border border-green-500/20 font-semibold">
-                      RESULTADOS
+                      {t('results')}
                     </span>
                   )}
                 </div>
@@ -1215,7 +1283,7 @@ function App() {
                 {/* Fun Fact during Reveal — Host */}
                 {gamePhase === 'REVEALING' && revealFunFact && (
                   <div className="animate-pop-in bg-indigo-950/50 border border-indigo-500/30 rounded-2xl p-5 shadow-lg">
-                    <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">💡 ¿Sabías que...?</p>
+                    <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-2">{t('didYouKnow')}</p>
                     <p className="text-slate-200 text-sm leading-relaxed">{revealFunFact}</p>
                   </div>
                 )}
@@ -1224,7 +1292,7 @@ function App() {
                 {gamePhase === 'REVEALING' && (
                   <div className="bg-slate-800/40 border border-slate-800 rounded-2xl p-6 shadow-xl">
                     <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-                      Tabla de Posiciones
+                      {t('scoreboard')}
                     </h3>
                     <div className="space-y-2">
                       {scoreboard.map((p, idx) => (
@@ -1295,25 +1363,25 @@ function App() {
                     {selectedOption === null ? (
                       <div className="animate-pop-in">
                         <p className="text-4xl mb-2">⏱️</p>
-                        <p className="text-yellow-400 font-extrabold text-xl">¡Se te acabó el tiempo!</p>
-                        <p className="text-slate-400 text-sm mt-1">La respuesta era: <span className="text-white font-bold">{currentQuestion.options[correctIndex!]}</span></p>
+                        <p className="text-yellow-400 font-extrabold text-xl">{t('timeUp')}</p>
+                        <p className="text-slate-400 text-sm mt-1">{t('timeUpAnswer')} <span className="text-white font-bold">{currentQuestion.options[correctIndex!]}</span></p>
                       </div>
                     ) : selectedOption === correctIndex ? (
                       <div className="animate-pop-in">
                         <p className="text-5xl mb-2">🎉</p>
-                        <p className="text-green-400 font-extrabold text-2xl tracking-tight">¡CORRECTO!</p>
-                        <p className="text-slate-400 text-sm mt-1">Sumaste puntos en esta ronda.</p>
+                        <p className="text-green-400 font-extrabold text-2xl tracking-tight">{t('correct')}</p>
+                        <p className="text-slate-400 text-sm mt-1">{t('correctPoints')}</p>
                       </div>
                     ) : (
                       <div className="animate-pop-in">
                         <p className="text-5xl mb-2">💥</p>
-                        <p className="text-red-400 font-extrabold text-2xl tracking-tight">INCORRECTO</p>
-                        <p className="text-slate-400 text-sm mt-1">La respuesta correcta era: <span className="text-green-400 font-bold">{currentQuestion.options[correctIndex!]}</span></p>
+                        <p className="text-red-400 font-extrabold text-2xl tracking-tight">{t('incorrect')}</p>
+                        <p className="text-slate-400 text-sm mt-1">{t('incorrectAnswer')} <span className="text-green-400 font-bold">{currentQuestion.options[correctIndex!]}</span></p>
                       </div>
                     )}
                     {revealFunFact && (
                       <div className="mt-4 pt-4 border-t border-slate-700 animate-pop-in" style={{ animationDelay: '0.3s' }}>
-                        <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">💡 ¿Sabías que...?</p>
+                        <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">{t('didYouKnow')}</p>
                         <p className="text-slate-300 text-sm leading-relaxed">{revealFunFact}</p>
                       </div>
                     )}
@@ -1346,10 +1414,10 @@ function App() {
 
                 <div className="relative z-10">
                   <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wider block mb-1">
-                    Juego Finalizado
+                    {t('gameFinished')}
                   </span>
                   <h2 className="text-4xl font-extrabold text-white animate-pop-in">
-                    🏆 PODIO 🏆
+                    {t('podium')}
                   </h2>
                 </div>
 
@@ -1408,7 +1476,7 @@ function App() {
                   onClick={resetAll}
                   className="relative z-10 w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 font-bold text-white transition-all shadow-lg shadow-indigo-500/20 active:scale-95"
                 >
-                  Volver al Menú Principal
+                  {t('backToMenu')}
                 </button>
               </div>
             )}
@@ -1420,7 +1488,7 @@ function App() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80 py-4 text-center text-xs text-slate-500">
-        &copy; {new Date().getFullYear()} Trivia Realtime MVP. Todos los derechos reservados.
+        &copy; {new Date().getFullYear()} {t('footerText')}
       </footer>
     </div>
   )

@@ -1,4 +1,4 @@
-import { Session, TriviaConfig, Question } from '../../shared/types';
+import { Session, TriviaConfig, Question, Language } from '../../shared/types';
 
 // Almacén de sesiones en memoria
 const sessions: Map<string, Session> = new Map();
@@ -18,10 +18,11 @@ function generateSessionId(): string {
   return id;
 }
 
-export function createSession(config: TriviaConfig, questions: Question[]): Session {
+export function createSession(config: TriviaConfig, questions: Question[], language: Language): Session {
   const sessionId = generateSessionId();
   const session: Session = {
     id: sessionId,
+    language,
     status: 'LOBBY',
     config,
     questions,
